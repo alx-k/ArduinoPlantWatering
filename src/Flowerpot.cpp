@@ -26,16 +26,16 @@ Flowerpot::Flowerpot(uint8_t sensorPin, int pumpPin, int minHumidity, int wateri
     this->waterDur=wateringSeconds;
     this->waterCool=cooldownSeconds;
     this->timer=timer;
-    pinMode(sensorPin,INPUT);
-    pinMode(pumpPin,OUTPUT);
-    pinMode(sensorPowerPin,OUTPUT);
-    digitalWrite(pumpPin,LOW);
-    digitalWrite(sensorPowerPin,LOW);
     init();
 }
 
 void Flowerpot::init() {
     this->lastWatered = 0;
+    pinMode(sensorPin,INPUT);
+    pinMode(pumpPin,OUTPUT);
+    pinMode(sensorPowerPin,OUTPUT);
+    digitalWrite(pumpPin,LOW);
+    digitalWrite(sensorPowerPin,LOW);
     getHumidity();
 }
 
@@ -43,6 +43,7 @@ int Flowerpot::getHumidity() { //public für mqtt
     digitalWrite(sensorPowerPin,HIGH);
     int reading = analogRead(sensorPin);
     digitalWrite(sensorPowerPin,LOW);
+    //TODO: Mapping
     this->humidity=reading;
     return this->humidity;
 }
@@ -50,11 +51,11 @@ int Flowerpot::getHumidity() { //public für mqtt
 void Flowerpot::water(int duration) {  //public für mqtt
     digitalWrite(pumpPin,HIGH);
     timer->in(duration*1000,pumpOff,pumpPin);
-    this->lastWatered=millis();
+    this->lastWatered=millis(); //Theoretisch +(duration*1000) für den Endzeitpunkt des Gießens
 }
 
-void Flowerpot::compute() {
-    //automatisch messen und falls nötig wässern
+void Flowerpot::process() {
+    //messen und falls nötig wässern
     getHumidity();
     if (needsWater()) {
         if (wateringAllowed()) {

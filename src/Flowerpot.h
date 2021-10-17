@@ -7,7 +7,6 @@
 
 class Flowerpot{
   private:
-    int humidity;
     unsigned long int lastWatered;
     uint8_t sensorPin;
     int pumpPin;
@@ -19,14 +18,15 @@ class Flowerpot{
 
     bool needsWater();
     bool wateringAllowed();
+    int getHumidity();
+    void init();
 
 
   public:
+    int humidity;
     Flowerpot(uint8_t sensorPin, int pumpPin, int minHumidity, int waterSeconds, int cooldown, Timer<10,millis,int>* timer);
-    void init();
-    int getHumidity();
     void water(int duration);
-    void compute();
+    void process();
 };
 
 #endif

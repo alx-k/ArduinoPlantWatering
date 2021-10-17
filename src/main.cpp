@@ -7,12 +7,32 @@
 #include "arduino-timer.h"
 
 //Defines
+#define MINHUMID 20
+#define WATERINGSECONDS 10
+#define WATERINGCOOLDOWN 900
 
 //Globale Variablen
-Timer<10,millis,int> pumptimer;
+Timer<10,millis,int> timer;
 int status = WL_IDLE_STATUS;
-Flowerpot pots[]= {Flowerpot(A3,7,20,10,900,&pumptimer),Flowerpot(A2,6,20,10,900,&pumptimer),Flowerpot(A1,5,20,10,900,&pumptimer),Flowerpot(A0,4,20,10,900,&pumptimer)};
+Flowerpot pots[]= {
+  Flowerpot(A3,7,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer),
+  Flowerpot(A2,6,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer),
+  Flowerpot(A1,5,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer),
+  Flowerpot(A0,4,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer)
+};
 
+
+bool checkPots(int a){
+  int numPots = sizeof(pots)/sizeof(Flowerpot);
+  int humidities[numPots];
+  for (int i = 0; i < numPots; i++)
+  {
+    pots[i].process();
+    humidities[i]=pots[i].humidity;
+  }
+  //TODO: humidities per mqtt senden
+  return true;
+}
 
 void setup()
 {
@@ -30,14 +50,16 @@ void setup()
     // Connect to WPA/WPA2 network
     status = WiFi.begin(ssid, pass);
   }
-
   Serial.println("Connected!");
-}
 
+  //Timer zum regelmäßig messen und falls nötig gießen
+  timer.every(10000,checkPots);
+
+  //TODO: MQTT Setup, callback für wässern und callback für automatik-schalter
+  
+}
 
 void loop()
 {
-  delay(10000);
-  Serial.println("Still running!");
-
+  timer.tick();
 }
