@@ -1,8 +1,9 @@
 //Includes
 #include "WiFiEsp.h"
+#include "WiFiEspClient.h"
 #include <Arduino.h>
 #include "Flowerpot.h"
-#include "WifiCredentials.h" //ssid und pass als char arrays
+#include "Credentials.h"
 #include "PubSubClient.h"
 #include "arduino-timer.h"
 
@@ -10,16 +11,18 @@
 #define MINHUMID 20
 #define WATERINGSECONDS 10
 #define WATERINGCOOLDOWN 900
+void mqttCallback(char* topic, byte* payload, unsigned int length);
 
 //Globale Variablen
 Timer<10,millis,int> timer;
-int status = WL_IDLE_STATUS;
 Flowerpot pots[]= {
   Flowerpot(A3,7,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer),
   Flowerpot(A2,6,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer),
   Flowerpot(A1,5,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer),
   Flowerpot(A0,4,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer)
 };
+WiFiEspClient wifiClient;
+PubSubClient mqtt(mqttIP,1883,mqttCallback,wifiClient);
 
 
 bool checkPots(int a){
@@ -34,32 +37,44 @@ bool checkPots(int a){
   return true;
 }
 
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  //TODO: Was sinnvolles machen
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i=0;i<length;i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
 void setup()
 {
-  // initialize serial for debugging
+  // USB Serial
   Serial.begin(9600);
-  // initialize serial for ESP module
-  Serial3.begin(115200);
-  // initialize ESP module
-  WiFi.init(&Serial3);
 
-  // attempt to connect to WiFi network
+  // Serial3 Wemos 2560 Wifi -> ESP866 AT-Firmware
+  Serial3.begin(115200);
+  WiFi.init(&Serial3);
+  int status = WL_IDLE_STATUS;
   while ( status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to ");
-    Serial.println(ssid);
-    // Connect to WPA/WPA2 network
     status = WiFi.begin(ssid, pass);
   }
-  Serial.println("Connected!");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
 
   //Timer zum regelmäßig messen und falls nötig gießen
   timer.every(10000,checkPots);
 
-  //TODO: MQTT Setup, callback für wässern und callback für automatik-schalter
-  
+  //MQTT
+  if (mqtt.connect(mqttID, mqttUser, mqttPass)) {
+    mqtt.subscribe("plantWatering");
+    mqtt.subscribe("plantAutomatik");
+  }
 }
 
 void loop()
 {
   timer.tick();
+  mqtt.loop();
 }
