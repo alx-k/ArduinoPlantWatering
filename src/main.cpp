@@ -4,12 +4,14 @@
 #include "Flowerpot.h"
 #include "WifiCredentials.h" //ssid und pass als char arrays
 #include "PubSubClient.h"
+#include "arduino-timer.h"
 
 //Defines
 
 //Globale Variablen
+Timer<10,millis,int> pumptimer;
 int status = WL_IDLE_STATUS;
-Flowerpot pots[]= {Flowerpot(1,2,20,10,600),Flowerpot(3,4,20,10,600),Flowerpot(5,6,20,10,600),Flowerpot(7,8,20,10,600)};
+Flowerpot pots[]= {Flowerpot(A3,7,20,10,900,&pumptimer),Flowerpot(A2,6,20,10,900,&pumptimer),Flowerpot(A1,5,20,10,900,&pumptimer),Flowerpot(A0,4,20,10,900,&pumptimer)};
 
 
 void setup()
