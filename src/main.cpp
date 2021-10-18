@@ -11,7 +11,9 @@
 #define MINHUMID 20
 #define WATERINGSECONDS 10
 #define WATERINGCOOLDOWN 900
+#define CHECKINTERVAL 10
 void mqttCallback(char* topic, byte* payload, unsigned int length);
+bool checkPots(int a);
 
 //Globale Variablen
 Timer<10,millis,int> timer;
@@ -22,30 +24,43 @@ Flowerpot pots[]= {
   Flowerpot(A0,4,MINHUMID,WATERINGSECONDS,WATERINGCOOLDOWN,&timer)
 };
 WiFiEspClient wifiClient;
-PubSubClient mqtt(mqttIP,1883,mqttCallback,wifiClient);
+PubSubClient mqtt(mqttIP,mqttPort,mqttCallback,wifiClient);
+auto checkTask = timer.every(CHECKINTERVAL*1000,checkPots);
 
 
 bool checkPots(int a){
   int numPots = sizeof(pots)/sizeof(Flowerpot);
-  int humidities[numPots];
+  String humString;
   for (int i = 0; i < numPots; i++)
   {
     pots[i].process();
-    humidities[i]=pots[i].humidity;
+    humString += pots[i].humidity;
+    humString += ";";
   }
-  //TODO: humidities per mqtt senden
+  mqtt.beginPublish("plantWatering/humidities",humString.length(),false);
+  mqtt.println(humString);
+  mqtt.endPublish();
   return true;
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  //TODO: Was sinnvolles machen
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i=0;i<length;i++) {
-    Serial.print((char)payload[i]);
+  if (topic == "plantWatering/water") {    
+    String firstLetter(payload[0]);
+    if (firstLetter.toInt()>0 && firstLetter.toInt()<=4) pots[firstLetter.toInt()-1].water(WATERINGSECONDS);
+    else Serial.println("Received some payload I didn't expect on plantWatering/water!");
+  } else if (topic == "plantWatering/auto") {
+    timer.cancel(checkTask);
+    if ((char)payload[0]==1) checkTask = timer.every(CHECKINTERVAL*1000,checkPots);
+  } else {
+    Serial.println("Received some topic I didn't expect!");
+    Serial.print("[");
+    Serial.print(topic);
+    Serial.print("] ");
+    for (unsigned int i=0;i<length;i++) {
+      Serial.print((char)payload[i]);
+    }
+    Serial.println();
   }
-  Serial.println();
 }
 
 void setup()
@@ -64,12 +79,12 @@ void setup()
   Serial.println(ssid);
 
   //Timer zum regelmäßig messen und falls nötig gießen
-  timer.every(10000,checkPots);
+  
 
   //MQTT
   if (mqtt.connect(mqttID, mqttUser, mqttPass)) {
-    mqtt.subscribe("plantWatering");
-    mqtt.subscribe("plantAutomatik");
+    mqtt.subscribe("plantWatering/water");
+    mqtt.subscribe("plantWatering/auto");
   }
 }
 
